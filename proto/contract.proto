@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package authService;
+option go_package = "auth-service/pb";
+
+// import "google/protobuf/empty.proto";
+import "validate/validate.proto";
+
+message Response {
+	bool Status = 1;
+	string message = 2;
+	string data = 3;
+}
+
+message UserData {
+	string nik      = 1 [(validate.rules).string.len=16];
+	string name     = 2 [(validate.rules).string.min_len=1];
+	string city     = 3 [(validate.rules).string.min_len=1];
+	string province = 4 [(validate.rules).string.min_len=1];
+}
+
+service AuthService {
+	rpc Register(UserData) returns (Response);
+}
