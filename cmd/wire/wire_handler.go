@@ -2,7 +2,7 @@ package wiree
 
 import (
 	"auth/controller/handler"
-	pb "auth/pb/pbconnect"
+	pb "github.com/nJannDave/pkg/pb/auth/authconnect"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
