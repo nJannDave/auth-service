@@ -3,8 +3,7 @@ package handler
 import (
 	"auth/domain/entity"
 	contract "auth/domain/interface"
-	"auth/pb"
-	"auth/pb/pbconnect"
+
 	"errors"
 	"time"
 	"connectrpc.com/connect"
@@ -13,10 +12,12 @@ import (
 	"github.com/nJannDave/pkg/log"
 	utils "github.com/nJannDave/pkg/utils/handler"
 	"github.com/nJannDave/pkg/const"
+	pb "github.com/nJannDave/pkg/pb/auth"
+	pbc "github.com/nJannDave/pkg/pb/auth/authconnect"
 )
 
 type Handler struct {
-	proto pbconnect.UnimplementedAuthServiceHandler
+	proto pbc.UnimplementedAuthServiceHandler
 	service contract.Service
 }
 
@@ -39,7 +40,7 @@ func (h *Handler) Register(
 	if idempotencyKey == "" {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("idempotency Key not found"))
 	}
-	userData := entity.NewUserData(req.Msg.Nik, req.Msg.Name)
+	userData := entity.NewUserData(req.Msg.Nik, req.Msg.Name, req.Msg.Password)
 	residence := entity.NewResidence(req.Msg.Province, req.Msg.City)
 	if err := h.service.Register(rCtx, *userData, *residence, idempotencyKey); err != nil {
 		status, errorr := utils.ValidateErrHandler(err)
