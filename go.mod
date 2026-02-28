@@ -4,14 +4,13 @@ go 1.24.5
 
 require (
 	connectrpc.com/connect v1.19.1
-	github.com/envoyproxy/protoc-gen-validate v1.3.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
-	github.com/nJannDave/pkg v1.0.1
+	github.com/nJannDave/pkg v1.0.2
 	github.com/redis/go-redis/v9 v9.18.0
+	golang.org/x/crypto v0.48.0
 	golang.org/x/net v0.50.0
-	google.golang.org/protobuf v1.36.11
 	gorm.io/gorm v1.31.1
 )
 
@@ -19,6 +18,7 @@ require (
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
@@ -45,10 +45,10 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 require (
