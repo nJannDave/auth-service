@@ -6,6 +6,7 @@ type UserData struct {
 	AccountId int `gorm:"column:account_id;autoIncrement"`
 	NIK string `gorm:"column:nik"`
 	Name string `gorm:"column:name"`
+	Password string `gorm:"column:password"`
 }
 
 func (UserData) TableName() string {
@@ -19,10 +20,11 @@ func (u *UserData) ValidateNik() error {
 	return nil
 }
 
-func NewUserData(nik string, name string) *UserData {
+func NewUserData(nik string, name string, password string) *UserData {
 	return &UserData{
 		NIK: nik,
 		Name: name,
+		Password: password,
 	}
 }
 
