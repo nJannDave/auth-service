@@ -6,8 +6,10 @@ import (
 
 	"auth/domain/entity"
 	contract "auth/domain/interface"
+	"auth/controller/hash"
+
 	"errors"
-	"fmt"
+	// "fmt"
 	"strings"
 	"time"
 
@@ -35,12 +37,6 @@ func (s *service) Register(ctx context.Context, userData entity.UserData, reside
 			s.repo.RdsDel(ctx, nikKey)
 		}
 	}()
-	fmt.Printf("\n: %v \n", userData == entity.UserData{})
-	fmt.Printf("\n: %v \n", residence == entity.Residence{})
-	fmt.Printf("\n: %v \n", userData.NIK == "")
-	fmt.Printf("\n: %v \n", userData.Name == "")
-	fmt.Printf("\n: %v \n", residence.City == "")
-	fmt.Printf("\n: %v \n", residence.Province == "")
 	if err := s.repo.Setnx(ctx, idempotencyKey, idempotencyKey, 24*time.Hour); err != nil {
 		IsErr = true
 		if strings.Contains(err.Error(), msg) {
@@ -59,6 +55,11 @@ func (s *service) Register(ctx context.Context, userData entity.UserData, reside
 		IsErr = true
 		return err
 	}
+	hash, err := hash.HashPassword(userData.Password)
+	if err != nil {
+		return utils.ValidateErrService(err, utils.WithService(service))
+	}
+	userData.Password = hash
 	id, err := s.repo.GetNIK(ctx, userData.NIK)
 	if err != nil {
 		IsErr = true
