@@ -5,6 +5,7 @@ import (
 	"github.com/nJannDave/pkg/log"
 
 	"auth/cmd/wire"
+	"auth/controller/token"
 	"os/signal"
 	"syscall"
 
@@ -21,7 +22,12 @@ func main() {
 	if err := godotenv.Load(".env"); err != nil {
 		zapLog.Error("failed open .env file")
 		return
-	}	
+	}
+
+	if err := token.Init(); err != nil {
+		zapLog.Error("failed search privat and pub key")
+		return
+	}
 
 	handler, cleanup, err := wiree.InitializeApp()
 	if err != nil {
