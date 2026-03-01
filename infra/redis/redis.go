@@ -2,6 +2,8 @@ package inrd
 
 import (
 	"github.com/nJannDave/pkg/log"
+	"github.com/nJannDave/pkg/log/structure"
+	"go.uber.org/zap"
 
 	"context"
 	"os"
@@ -14,18 +16,24 @@ func ProviderCTX() context.Context {
 }
 
 func Init(ctx context.Context) (*redis.Client, func()) {
+	var logcfg = structure.LogConfig {
+		Status: false,
+		Service: "connect redis",
+		Error: "",
+	}
 	rds := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("RA"),
 		Password: os.Getenv("RP"),
 		DB:       0,
 	})
 	if err := rds.Ping(ctx).Err(); err != nil {
-		log.LogConfig("failed connect to redis", "connect_redis", err)
-		panic(err)
+		logcfg.Error = err.Error()
+		log.ZapLog.Sugar().Fatalf("failed connect redis: %v", err)
 	}
 	return rds, func () {
 		if err := rds.Close(); err != nil {
-			panic(err)
+			logcfg.Error = err.Error()
+			log.ZapLog.Fatal("failed stop redis", zap.Object("log_config: ", logcfg))
 		}
 	}
 }

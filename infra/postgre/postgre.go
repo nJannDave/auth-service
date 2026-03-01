@@ -2,8 +2,10 @@ package inpg
 
 import (
 	"fmt"
-	
+
 	"github.com/nJannDave/pkg/log"
+	"github.com/nJannDave/pkg/log/structure"
+	"go.uber.org/zap"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -17,12 +19,17 @@ func ProviderConnStr() string {
 }
 
 func Init(connStr string) (*gorm.DB, func()) {
+	var logcfg = structure.LogConfig {
+		Status: false,
+		Service: "connect postgre",
+		Error: "",
+	}
 	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		log.LogConfig("failed connect db", "connect_db_gorm", err)
-		panic(err)
+		logcfg.Error = err.Error()
+		log.ZapLog.Sugar().Fatalf("failed connect postgres", zap.Object("log_config", logcfg))
 	}
 
 	sqlDB, _ := db.DB()
@@ -30,7 +37,8 @@ func Init(connStr string) (*gorm.DB, func()) {
 	sqlDB.SetMaxOpenConns(20)
 	return db, func(){
 		if err := sqlDB.Close(); err != nil {
-			panic(err)
+			logcfg.Error = err.Error()
+			log.ZapLog.Sugar().Fatalf("failed connect postgres", zap.Object("log_config", logcfg))
 		}
 	}
 }
