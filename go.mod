@@ -5,9 +5,11 @@ go 1.24.5
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/gin-gonic/gin v1.11.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
-	github.com/nJannDave/pkg v1.0.2
+	github.com/nJannDave/pkg v1.0.3
 	github.com/redis/go-redis/v9 v9.18.0
 	golang.org/x/crypto v0.48.0
 	golang.org/x/net v0.50.0
