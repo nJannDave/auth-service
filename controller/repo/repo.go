@@ -37,6 +37,13 @@ func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Dur
 	return errors.New("data already exists")
 }
 
+func (r *repo) RdsSet(ctx context.Context, key string, value string, ttl time.Duration) error {
+	if err := r.rds.Set(ctx, key, value, ttl).Err(); err != nil {
+		return utils.ValidateErrRedis(err, utils.WithFunc("redis set"))
+	}
+	return nil
+}
+ 
 func (r *repo) RdsDel(ctx context.Context, key string) error {
 	if err := r.rds.Del(ctx, key).Err(); err != nil {
 		return utils.ValidateErrRedis(err, utils.WithFunc("redis delete"))
@@ -87,4 +94,12 @@ func (r *repo) AddJunction(ctx context.Context, data entity.JunctionData) error 
 		return utils.ValidateErrRepo(err.Error, utils.WithFunc("AddJunction"))
 	}
 	return nil
+}
+
+func (r *repo) GetPassword(ctx context.Context, id int, nik string) (string, error) {
+	var password string
+	if err := r.db.WithContext(ctx).Table("account").Select("password").Where("account_id = ?", id).Where("nik = ?", nik).Limit(1).Scan(&password).Error; err != nil {
+		return "", utils.ValidateErrRepo(err, utils.WithName("password"), utils.WithFunc("GetPassword"))
+	}
+	return password, nil
 }

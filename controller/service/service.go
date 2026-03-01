@@ -2,11 +2,12 @@ package service
 
 import (
 	utils "github.com/nJannDave/pkg/utils/service"
-	// "github.com/nJannDave/pkg/const"
+	"github.com/nJannDave/pkg/const"
 
+	"auth/controller/hash"
+	"auth/controller/token"
 	"auth/domain/entity"
 	contract "auth/domain/interface"
-	"auth/controller/hash"
 
 	"errors"
 	// "fmt"
@@ -91,4 +92,29 @@ func (s *service) Register(ctx context.Context, userData entity.UserData, reside
 		}
 		return nil
 	})
+}
+
+func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.Token,error) {
+	var service = "login"
+	const role = "public"
+	id, err := s.repo.GetNIK(ctx, loginData.NIK)
+	if err != nil {
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	}
+	if id == 0 { return nil, errors.New("account not found") }
+	pw, err := s.repo.GetPassword(ctx, id, loginData.NIK) 
+	if err != nil {
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	}
+	if err := hash.UnHashPassword(loginData.Password, pw); err != nil {
+		return nil, err
+	}
+	tkn, err := token.GenerateToken(id, role)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.RdsSet(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour); err != nil {
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	}
+	return tkn, nil
 }

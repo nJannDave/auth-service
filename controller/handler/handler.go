@@ -54,3 +54,29 @@ func (h *Handler) Register(
 		Message: "registered successfully",
 	}), nil
 }
+
+func (h *Handler) Login(
+	ctx context.Context,
+	req *connect.Request[pb.LoginData],
+) (*connect.Response[pb.Response], error) {
+	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := req.Msg.Validate(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	userData := entity.NewUserData(req.Msg.Nik, req.Msg.Name, req.Msg.Password)
+	tkn, err := h.service.Login(rCtx, *userData)
+	if err != nil {
+		status, errorr := utils.ValidateErrHandler(err)
+		if status == 500 {
+			log.LogHSR(ctx, "internal server error", "login", req.Spec().Procedure, err.Error())
+		}
+		return nil, errorr
+	}
+	utils.SetCookie(ctx, string(constt.AT), tkn.Access, time.Now().Add(3*time.Minute))
+	utils.SetCookie(ctx, string(constt.RF), tkn.Refresh, time.Now().Add(24*3*time.Hour))
+	return connect.NewResponse(&pb.Response{
+		Status: true,
+		Message: "successfully login",
+	}), nil
+}
