@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -22,6 +23,16 @@ type Token struct {
 }
 
 var prk *rsa.PrivateKey
+
+func GetPublicKey() (*rsa.PublicKey, error) {
+	pbkEnv := os.Getenv("pbk")
+	pbk64, err := base64.StdEncoding.DecodeString(pbkEnv)
+	if err != nil {
+		return nil, errors.New("internal server error: failed decode token: " + err.Error())
+	}
+	pbkFix, _ := jwt.ParseRSAPublicKeyFromPEM(pbk64)
+	return pbkFix, nil
+}
 
 func Init() error {
 	prkEnv := os.Getenv("prk")
@@ -64,4 +75,24 @@ func GenerateToken(id int, role string) (*Token, error) {
 		Access: a,
 		Refresh: r,
 	}, nil
+}
+
+func ValidateToken(token string, publicKey *rsa.PublicKey) (*Claims, error) {
+	t, err := jwt.ParseWithClaims(token, &Claims{}, func(tkn *jwt.Token) (interface{}, error) {
+		if _, ok := tkn.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, errors.New("invalid alg")
+		}
+		return publicKey, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("internal server error: failed parse token: %w", err)
+	}
+	if !t.Valid {
+		return nil, errors.New("invalid token")
+	}
+	claims, ok := t.Claims.(*Claims)
+	if !ok {
+		return nil, fmt.Errorf("internal server error: failed type cast token: %w", err)
+	}
+	return claims, nil
 }
