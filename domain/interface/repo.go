@@ -9,6 +9,7 @@ import (
 type Repo interface {
 	Setnx(ctx context.Context, key string, value string, ttl time.Duration) error
 	RdsSet(ctx context.Context, key string, value string, ttl time.Duration) error
+	RdsGet(ctx context.Context, key string, name string) (any, error)
 	RdsDel(ctx context.Context, key string) error
 
 	Transactions(ctx context.Context, fn func(context.Context) error ) error
