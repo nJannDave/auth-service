@@ -39,11 +39,19 @@ func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Dur
 
 func (r *repo) RdsSet(ctx context.Context, key string, value string, ttl time.Duration) error {
 	if err := r.rds.Set(ctx, key, value, ttl).Err(); err != nil {
-		return utils.ValidateErrRedis(err, utils.WithFunc("redis set"))
+		return utils.ValidateErrRedis(err, utils.WithFunc("redis set"), utils.WithName("token refresh"))
 	}
 	return nil
 }
  
+func (r *repo) RdsGet(ctx context.Context, key string, name string) (any, error) {
+	result, err := r.rds.Get(ctx, key).Result()
+	if err != nil {
+		return nil, utils.ValidateErrRedis(err, utils.WithFunc("redis get"), utils.WithName(name))
+	}
+	return result, nil
+}
+
 func (r *repo) RdsDel(ctx context.Context, key string) error {
 	if err := r.rds.Del(ctx, key).Err(); err != nil {
 		return utils.ValidateErrRedis(err, utils.WithFunc("redis delete"))

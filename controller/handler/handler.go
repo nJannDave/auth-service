@@ -3,17 +3,20 @@ package handler
 import (
 	"auth/domain/entity"
 	contract "auth/domain/interface"
+	"strings"
 
+	"context"
 	"errors"
 	"time"
-	"connectrpc.com/connect"
-	"context"
 
-	"github.com/nJannDave/pkg/log"
-	utils "github.com/nJannDave/pkg/utils/handler"
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/nJannDave/pkg/const"
+	"github.com/nJannDave/pkg/log"
 	pb "github.com/nJannDave/pkg/pb/auth"
 	pbc "github.com/nJannDave/pkg/pb/auth/authconnect"
+	utils "github.com/nJannDave/pkg/utils/handler"
 )
 
 type Handler struct {
@@ -45,7 +48,7 @@ func (h *Handler) Register(
 	if err := h.service.Register(rCtx, *userData, *residence, idempotencyKey); err != nil {
 		status, errorr := utils.ValidateErrHandler(err)
 		if status == 500 {
-			log.LogHSR(ctx, "internal server error", "register", req.Spec().Procedure, err.Error())
+			log.LogHSR(ctx, "failed register", "register", req.Spec().Procedure, err.Error())
 		}
 		return nil, errorr
 	}
@@ -69,14 +72,44 @@ func (h *Handler) Login(
 	if err != nil {
 		status, errorr := utils.ValidateErrHandler(err)
 		if status == 500 {
-			log.LogHSR(ctx, "internal server error", "login", req.Spec().Procedure, err.Error())
+			log.LogHSR(ctx, "failed login", "login", req.Spec().Procedure, err.Error())
 		}
 		return nil, errorr
 	}
-	utils.SetCookie(ctx, string(constt.AT), tkn.Access, time.Now().Add(3*time.Minute))
-	utils.SetCookie(ctx, string(constt.RF), tkn.Refresh, time.Now().Add(24*3*time.Hour))
+	utils.SetCookie(ctx, string(constt.AT), tkn.Access, 3*time.Minute)
+	utils.SetCookie(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour)
 	return connect.NewResponse(&pb.Response{
 		Status: true,
 		Message: "successfully login",
+	}), nil
+}
+
+func (h *Handler) Refresh(
+	ctx context.Context,
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[pb.Response], error) {
+	rCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	token, err := utils.GetCookie(req, string(constt.RF))
+	if err != nil {
+		if strings.Contains(err.Error(), "internal server error: ") {
+			log.LogHSR(ctx, "error while parsing cookie", "refresh", req.Spec().Procedure, err.Error())
+			return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	tkn, err := h.service.Refresh(rCtx, token)
+	if err != nil {
+		status, errorr := utils.ValidateErrHandler(err)
+		if status == 500 {
+			log.LogHSR(ctx, "failed refresh token", "refresh", req.Spec().Procedure, err.Error())
+		}
+		return nil, errorr
+	}
+	utils.SetCookie(ctx, string(constt.AT), tkn.Access, 3*time.Minute)
+	utils.SetCookie(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour)
+	return connect.NewResponse(&pb.Response{
+		Status: true,
+		Message: "successfully refresh token",
 	}), nil
 }

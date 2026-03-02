@@ -1,8 +1,8 @@
 package service
 
 import (
-	utils "github.com/nJannDave/pkg/utils/service"
 	"github.com/nJannDave/pkg/const"
+	utils "github.com/nJannDave/pkg/utils/service"
 
 	"auth/controller/hash"
 	"auth/controller/token"
@@ -94,7 +94,8 @@ func (s *service) Register(ctx context.Context, userData entity.UserData, reside
 	})
 }
 
-func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.Token,error) {
+func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.Token, error) {
+	key := "token:refresh:"
 	var service = "login"
 	const role = "public"
 	id, err := s.repo.GetNIK(ctx, loginData.NIK)
@@ -113,8 +114,41 @@ func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.RdsSet(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour); err != nil {
+	key += tkn.Refresh
+	if err := s.repo.RdsSet(ctx, key, tkn.Refresh, 24*3*time.Hour); err != nil {
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	}
 	return tkn, nil
+}
+
+func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Token, error) {
+	var (
+		key = "token:refresh:" + tokenRefresh
+		service = "refresh"
+		id = 0
+	)
+	const role = "public"
+	pbk, err := token.GetPublicKey()
+	if err != nil {
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	}
+	tkn, err := token.ValidateToken(tokenRefresh, pbk)
+	if err != nil {
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	}
+	if _, err := s.repo.RdsGet(ctx, key, "refresh token"); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, errors.New("please login, can refresh token")
+		}
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	}
+	id = tkn.ID
+	if tkn, err := token.GenerateToken(id, role); err != nil {
+		return nil, utils.ValidateErrService(err, utils.WithService(service))
+	} else {
+		if err := s.repo.RdsSet(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour); err != nil {
+			return nil, utils.ValidateErrService(err, utils.WithService(service))
+		}		
+		return tkn, nil
+	}
 }
