@@ -1,17 +1,18 @@
 package repo
 
 import (
-	utils "github.com/nJannDave/pkg/utils/repo"
 	"github.com/nJannDave/pkg/const"
+	utils "github.com/nJannDave/pkg/utils/repo"
 
 	"auth/domain/entity"
 	"auth/domain/interface"
+	"context"
 	"errors"
 	"time"
+
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"context"
 )
 
 type repo struct {
@@ -24,6 +25,16 @@ func InitRepo(db *gorm.DB, rds *redis.Client) contract.Repo {
 		db: db,
 		rds: rds,
 	}
+}
+
+func (r *repo) RdsTX(ctx context.Context, fn func() error) error {
+	_, err := r.rds.TxPipelined(ctx, func(redis.Pipeliner) error {
+		if err := fn(); err != nil {
+			return utils.ValidateErrRedis(err)
+		}
+		return nil
+	})
+	return err
 }
 
 func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Duration) error {

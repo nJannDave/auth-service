@@ -3,6 +3,7 @@ package handler
 import (
 	"auth/domain/entity"
 	contract "auth/domain/interface"
+	"strconv"
 	"strings"
 
 	"context"
@@ -111,5 +112,48 @@ func (h *Handler) Refresh(
 	return connect.NewResponse(&pb.Response{
 		Status: true,
 		Message: "successfully refresh token",
+	}), nil
+}
+
+func (h *Handler) Logout(
+	ctx context.Context,
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[pb.Response], error) {
+	rCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	id := req.Header().Get(string(constt.ID))
+	rTkn, err := utils.GetCookie(req, string(constt.RF))
+	if err != nil {
+		if strings.Contains(err.Error(), "internal server error: ") {
+			log.LogHSR(ctx, "error while parsing cookie", "logout", req.Spec().Procedure, err.Error())
+			return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	aTkn, err := utils.GetCookie(req, string(constt.AT))
+	if err != nil {
+		if strings.Contains(err.Error(), "internal server error: ") {
+			log.LogHSR(ctx, "error while parsing cookie", "logout", req.Spec().Procedure, err.Error())
+			return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if rTkn == "" || aTkn == "" { return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("please login")) }
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
+	}
+	if err := h.service.Logout(rCtx, idInt, aTkn, rTkn); err != nil {
+		status, err := utils.ValidateErrHandler(err)
+		if status == 500 {
+			log.LogHSR(ctx, "failed logout", "logout", req.Spec().Procedure, err.Error())
+		}
+		return nil, err
+	}
+	utils.SetCookie(ctx, string(constt.AT), "", 0)
+	utils.SetCookie(ctx, string(constt.RF), "", 0)
+	return connect.NewResponse(&pb.Response{
+		Status: true,
+		Message: "successfully logout",
 	}), nil
 }
