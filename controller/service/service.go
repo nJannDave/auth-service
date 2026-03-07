@@ -126,7 +126,7 @@ func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.
 
 func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Token, error) {
 	var (
-		key = "token:refresh:" 
+		key = "token:refresh:id" 
 		service = "refresh"
 	)
 	const role = "public"
@@ -146,13 +146,22 @@ func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Toke
 		}
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	}
-	if tkn, err := token.GenerateToken(tkn.ID, role); err != nil {
+	if tknNew, err := token.GenerateToken(tkn.ID, role); err != nil {
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	} else {
-		if err := s.repo.RdsSet(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour); err != nil {
-			return nil, utils.ValidateErrService(err, utils.WithService(service))
-		}		
-		return tkn, nil
+		if err := s.repo.RdsTX(ctx, func() error {
+			keySet := "token:refresh:id" + strconv.Itoa(tkn.ID) + ":" + tknNew.Refresh
+			if err := s.repo.RdsSet(ctx, keySet, tknNew.Refresh, 24*3*time.Hour); err != nil {
+				return utils.ValidateErrService(err, utils.WithService(service))
+			}
+			if err := s.repo.RdsDel(ctx, key); err != nil {
+				return utils.ValidateErrService(err, utils.WithService(service))
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return tknNew, nil
 	}
 }
 
@@ -160,7 +169,7 @@ func (s *service) Logout(ctx context.Context, id int, accessTkn string, refreshT
 	var (
 		key = "blacklist:token:access:" + accessTkn + "id:" + strconv.Itoa(id)
 		service = "logout"
-		keyDel = "token:refresh:" + strconv.Itoa(id) + ":" + refreshTkn
+		keyDel = "token:refresh:id" + strconv.Itoa(id) + ":" + refreshTkn
 	)
 	return s.repo.RdsTX(ctx,
 		func() error {
