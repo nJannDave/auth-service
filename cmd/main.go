@@ -3,15 +3,11 @@ package main
 import (
 	"github.com/joho/godotenv"
 	"github.com/nJannDave/pkg/log"
+	utils "github.com/nJannDave/pkg/utils"
 
 	"auth/cmd/wire"
 	"auth/controller/token"
-	"os/signal"
-	"syscall"
 
-	"context"
-	"net/http"
-	"os"
 	"time"
 )
 
@@ -19,6 +15,7 @@ import (
 func main() {
 	zapLog := log.InitLog()
 	defer zapLog.Sync()
+
 	if err := godotenv.Load(".env"); err != nil {
 		zapLog.Error("failed open .env file")
 		return
@@ -36,16 +33,11 @@ func main() {
 	srv := wiree.WireHandler(handler)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed  {
-			zapLog.Sugar().Fatalf("error while start server: %v", err)
+			zapLog.Fatal("error while start server: " + err.Error())
 		}
 	}()
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<- quit
-	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		zapLog.Sugar().Fatalf("error while shutdown server: %v", err)
+	if err := utils.GraceFShutD(srv, 4*time.Minute); err != nil {
+		zapLog.Fatal("error while shutdown server: " + err.Error())
 	}
 	cleanup()
 }
