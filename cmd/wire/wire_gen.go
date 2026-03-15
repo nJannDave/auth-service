@@ -12,20 +12,23 @@ import (
 	"auth/controller/service"
 	"auth/infra/postgre"
 	"auth/infra/redis"
+
+	"github.com/go-redis/redis_rate/v10"
 )
 
 // Injectors from wire_blueprint.go:
 
-func InitializeApp() (*handler.Handler, func(), error) {
+func InitializeApp() (*handler.Handler, func(), *redis_rate.Limiter, error) {
 	string2 := inpg.ProviderConnStr()
 	db, cleanup := inpg.Init(string2)
 	context := inrd.ProviderCTX()
 	client, cleanup2 := inrd.Init(context)
+	rdsLimiter := redis_rate.NewLimiter(client)
 	contractRepo := repo.InitRepo(db, client)
 	contractService := service.InitService(contractRepo)
 	handlerHandler := handler.InitHandler(contractService)
 	return handlerHandler, func() {
 		cleanup2()
 		cleanup()
-	}, nil
+	}, rdsLimiter, nil
 }
