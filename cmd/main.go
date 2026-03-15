@@ -8,6 +8,7 @@ import (
 	"auth/cmd/wire"
 	"auth/controller/token"
 
+	"net/http"
 	"time"
 )
 
@@ -26,11 +27,11 @@ func main() {
 		return
 	}
 
-	handler, cleanup, err := wiree.InitializeApp()
+	handler, cleanup, limiter, err := wiree.InitializeApp()
 	if err != nil {
 		zapLog.Sugar().Fatalf("error while initialize app: %v", err)
 	}
-	srv := wiree.WireHandler(handler)
+	srv := wiree.WireHandler(handler, limiter)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed  {
 			zapLog.Fatal("error while start server: " + err.Error())
