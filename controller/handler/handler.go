@@ -47,11 +47,7 @@ func (h *Handler) Register(
 	userData := entity.NewUserData(req.Msg.Nik, req.Msg.Name, req.Msg.Password)
 	residence := entity.NewResidence(req.Msg.Province, req.Msg.City)
 	if err := h.service.Register(rCtx, *userData, *residence, idempotencyKey); err != nil {
-		status, errorr := utils.ValidateErrHandler(err)
-		if status == 500 {
-			log.LogHSR(ctx, "failed register", "register", req.Spec().Procedure, err.Error())
-		}
-		return nil, errorr
+		return nil, err
 	}
 	return connect.NewResponse(&pb.Response{
 		Status: true,
@@ -71,11 +67,7 @@ func (h *Handler) Login(
 	userData := entity.NewUserData(req.Msg.Nik, req.Msg.Name, req.Msg.Password)
 	tkn, err := h.service.Login(rCtx, *userData)
 	if err != nil {
-		status, errorr := utils.ValidateErrHandler(err)
-		if status == 500 {
-			log.LogHSR(ctx, "failed login", "login", req.Spec().Procedure, err.Error())
-		}
-		return nil, errorr
+		return nil, err
 	}
 	utils.SetCookie(ctx, string(constt.AT), tkn.Access, 3*time.Minute)
 	utils.SetCookie(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour)
@@ -101,11 +93,7 @@ func (h *Handler) Refresh(
 	}
 	tkn, err := h.service.Refresh(rCtx, token)
 	if err != nil {
-		status, errorr := utils.ValidateErrHandler(err)
-		if status == 500 {
-			log.LogHSR(ctx, "failed refresh token", "refresh", req.Spec().Procedure, err.Error())
-		}
-		return nil, errorr
+		return nil, err
 	}
 	utils.SetCookie(ctx, string(constt.AT), tkn.Access, 3*time.Minute)
 	utils.SetCookie(ctx, string(constt.RF), tkn.Refresh, 24*3*time.Hour)
@@ -144,10 +132,6 @@ func (h *Handler) Logout(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
 	}
 	if err := h.service.Logout(rCtx, idInt, aTkn, rTkn); err != nil {
-		status, err := utils.ValidateErrHandler(err)
-		if status == 500 {
-			log.LogHSR(ctx, "failed logout", "logout", req.Spec().Procedure, err.Error())
-		}
 		return nil, err
 	}
 	utils.SetCookie(ctx, string(constt.AT), "", 0)
