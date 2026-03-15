@@ -3,7 +3,6 @@ package service
 import (
 	"strconv"
 
-	"github.com/nJannDave/pkg/const"
 	utils "github.com/nJannDave/pkg/utils/service"
 
 	"auth/controller/hash"
@@ -97,7 +96,7 @@ func (s *service) Register(ctx context.Context, userData entity.UserData, reside
 }
 
 func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.Token, error) {
-	key := "token:refresh:"
+	key := "token:refresh:id:"
 	var service = "login"
 	const role = "public"
 	id, err := s.repo.GetNIK(ctx, loginData.NIK)
@@ -117,7 +116,7 @@ func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.
 	if err != nil {
 		return nil, err
 	}
-	key = key + ":" + tkn.Refresh
+	key += ":" + tkn.Refresh
 	if err := s.repo.RdsSet(ctx, key, tkn.Refresh, 24*3*time.Hour); err != nil {
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	}
@@ -126,7 +125,7 @@ func (s *service) Login(ctx context.Context, loginData entity.UserData) (*token.
 
 func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Token, error) {
 	var (
-		key = "token:refresh:id" 
+		key = "token:refresh:id:" 
 		service = "refresh"
 	)
 	const role = "public"
@@ -138,8 +137,7 @@ func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Toke
 	if err != nil {
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	}
-	key += strconv.Itoa(tkn.ID)
-	key = key + ":" + tokenRefresh
+	key += strconv.Itoa(tkn.ID) + ":" + tokenRefresh
 	if _, err := s.repo.RdsGet(ctx, key, "refresh token"); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil, errors.New("please login")
@@ -150,7 +148,7 @@ func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Toke
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	} else {
 		if err := s.repo.RdsTX(ctx, func() error {
-			keySet := "token:refresh:id" + strconv.Itoa(tkn.ID) + ":" + tknNew.Refresh
+			keySet := "token:refresh:id:" + strconv.Itoa(tkn.ID) + ":" + tknNew.Refresh
 			if err := s.repo.RdsSet(ctx, keySet, tknNew.Refresh, 24*3*time.Hour); err != nil {
 				return utils.ValidateErrService(err, utils.WithService(service))
 			}
@@ -169,7 +167,7 @@ func (s *service) Logout(ctx context.Context, id int, accessTkn string, refreshT
 	var (
 		key = "blacklist:token:access:" + accessTkn + "id:" + strconv.Itoa(id)
 		service = "logout"
-		keyDel = "token:refresh:id" + strconv.Itoa(id) + ":" + refreshTkn
+		keyDel = "token:refresh:id:" + strconv.Itoa(id) + ":" + refreshTkn
 	)
 	return s.repo.RdsTX(ctx,
 		func() error {
