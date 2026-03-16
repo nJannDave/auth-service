@@ -1,0 +1,200 @@
+definitions:
+  auth.LoginData:
+    properties:
+      name:
+        type: string
+      nik:
+        type: string
+      password:
+        type: string
+    type: object
+  auth.UserData:
+    properties:
+      city:
+        type: string
+      name:
+        type: string
+      nik:
+        type: string
+      password:
+        type: string
+      province:
+        type: string
+    type: object
+  dto.Empty:
+    type: object
+  dto.ErrorInternal:
+    properties:
+      code:
+        example: internal
+        type: string
+      error:
+        example: an error occured
+        type: string
+    type: object
+  dto.ResponseLogin:
+    properties:
+      Message:
+        example: successfully login
+        type: string
+      Status:
+        example: true
+        type: boolean
+    type: object
+  dto.ResponseLogout:
+    properties:
+      Message:
+        example: successfully logout
+        type: string
+      Status:
+        example: true
+        type: boolean
+    type: object
+  dto.ResponseRefresh:
+    properties:
+      Message:
+        example: successfully refresh token
+        type: string
+      Status:
+        example: true
+        type: boolean
+    type: object
+  dto.ResponseRegister:
+    properties:
+      Message:
+        example: registered successfully
+        type: string
+      Status:
+        example: true
+        type: boolean
+    type: object
+host: localhost:7070
+info:
+  contact: {}
+  description: For login, logout, refresh token and make account
+  title: Auth-Service API
+  version: "1.0"
+paths:
+  /authService.AuthService/Login:
+    post:
+      consumes:
+      - application/json
+      description: login for get access
+      parameters:
+      - description: account data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success login
+          schema:
+            $ref: '#/definitions/dto.ResponseLogin'
+        "500":
+          description: if error internal
+          schema:
+            $ref: '#/definitions/dto.ErrorInternal'
+      summary: login for get access
+      tags:
+      - Auth
+  /authService.AuthService/Logout:
+    post:
+      description: logout
+      parameters:
+      - description: empty
+        in: body
+        name: data
+        schema:
+          $ref: '#/definitions/dto.Empty'
+      - description: user id
+        in: header
+        name: User-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success login
+          schema:
+            $ref: '#/definitions/dto.ResponseLogout'
+        "500":
+          description: if error internal
+          schema:
+            $ref: '#/definitions/dto.ErrorInternal'
+      security:
+      - Access-Token: []
+        Refresh-Token: []
+      summary: logout
+      tags:
+      - Auth
+  /authService.AuthService/Refresh:
+    post:
+      description: for get a new token
+      parameters:
+      - description: empty
+        in: body
+        name: data
+        schema:
+          $ref: '#/definitions/dto.Empty'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success login
+          schema:
+            $ref: '#/definitions/dto.ResponseRefresh'
+        "500":
+          description: if error internal
+          schema:
+            $ref: '#/definitions/dto.ErrorInternal'
+      security:
+      - Refresh-Token: []
+      summary: for get a new token
+      tags:
+      - Auth
+  /authService.AuthService/Register:
+    post:
+      consumes:
+      - application/json
+      description: make account or register
+      parameters:
+      - description: idempotency key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: account data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UserData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success register
+          schema:
+            $ref: '#/definitions/dto.ResponseRegister'
+        "500":
+          description: if error internal
+          schema:
+            $ref: '#/definitions/dto.ErrorInternal'
+      summary: make account or register
+      tags:
+      - Auth
+securityDefinitions:
+  Access-Token:
+    in: cookie
+    name: AccessToken
+    type: apiKey
+  Refresh-Token:
+    in: cookie
+    name: RefreshToken
+    type: apiKey
+swagger: "2.0"
