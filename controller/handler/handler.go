@@ -2,6 +2,7 @@ package handler
 
 import (
 	"auth/domain/entity"
+	_ "auth/dto"
 	contract "auth/domain/interface"
 	"strconv"
 	"strings"
@@ -31,6 +32,17 @@ func InitHandler(service contract.Service) *Handler {
 	}
 }
 
+// Register godoc
+// @Tags Auth
+// @Summary make account or register
+// @Description make account or register
+// @Accept json
+// @Produce json
+// @Param Idempotency-Key header string true "idempotency key"
+// @Param data body pb.UserData true "account data"
+// @Success 200 {object} dto.ResponseRegister "success register"
+// @Failure 500 {object} dto.ErrorInternal "if error internal"
+// @Router /authService.AuthService/Register [post]
 func (h *Handler) Register(
 	ctx context.Context, 
 	req *connect.Request[pb.UserData],
@@ -55,6 +67,16 @@ func (h *Handler) Register(
 	}), nil
 }
 
+// Login godoc
+// @Tags Auth
+// @Summary login for get access
+// @Description login for get access
+// @Accept json
+// @Produce json
+// @Param data body pb.LoginData true "account data"
+// @Success 200 {object} dto.ResponseLogin "success login"
+// @Failure 500 {object} dto.ErrorInternal "if error internal"
+// @Router /authService.AuthService/Login [post]
 func (h *Handler) Login(
 	ctx context.Context,
 	req *connect.Request[pb.LoginData],
@@ -77,6 +99,16 @@ func (h *Handler) Login(
 	}), nil
 }
 
+// Refresh godoc
+// @Tags Auth
+// @Summary for get a new token
+// @Description for get a new token
+// @Produce json
+// @Security Refresh-Token
+// @Param data body dto.Empty false "empty"
+// @Success 200 {object} dto.ResponseRefresh "success login"
+// @Failure 500 {object} dto.ErrorInternal "if error internal"
+// @Router /authService.AuthService/Refresh [post]
 func (h *Handler) Refresh(
 	ctx context.Context,
 	req *connect.Request[emptypb.Empty],
@@ -103,6 +135,17 @@ func (h *Handler) Refresh(
 	}), nil
 }
 
+// Logout godoc
+// @Tags Auth
+// @Summary logout
+// @Description logout
+// @Produce json
+// @Security Access-Token && Refresh-Token
+// @Param data body dto.Empty false "empty"
+// @Param User-ID header string true "user id"
+// @Success 200 {object} dto.ResponseLogout "success login"
+// @Failure 500 {object} dto.ErrorInternal "if error internal"
+// @Router /authService.AuthService/Logout [post]
 func (h *Handler) Logout(
 	ctx context.Context,
 	req *connect.Request[emptypb.Empty],
@@ -132,6 +175,9 @@ func (h *Handler) Logout(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
 	}
 	if err := h.service.Logout(rCtx, idInt, aTkn, rTkn); err != nil {
+		if strings.Contains(err.Error(), "key doesnt exists") {
+			return nil, errors.New("id doesnt exists")
+		}
 		return nil, err
 	}
 	utils.SetCookie(ctx, string(constt.AT), "", 0)
