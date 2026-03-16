@@ -1,6 +1,9 @@
 package main
 
 import (
+	_ "auth/dto"
+	_ "auth/controller/handler"
+	
 	"github.com/joho/godotenv"
 	"github.com/nJannDave/pkg/log"
 	utils "github.com/nJannDave/pkg/utils"
@@ -12,7 +15,16 @@ import (
 	"time"
 )
 
-
+// @title Auth-Service API
+// @version 1.0
+// @description For login, logout, refresh token and make account
+// @host localhost:7070
+// @securityDefinitions.apikey Refresh-Token
+// @in cookie
+// @name RefreshToken
+// @securityDefinitions.apikey Access-Token
+// @in cookie
+// @name AccessToken
 func main() {
 	zapLog := log.InitLog()
 	defer zapLog.Sync()
