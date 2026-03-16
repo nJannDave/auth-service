@@ -64,8 +64,12 @@ func (r *repo) RdsGet(ctx context.Context, key string, name string) (any, error)
 }
 
 func (r *repo) RdsDel(ctx context.Context, key string) error {
-	if err := r.rds.Del(ctx, key).Err(); err != nil {
-		return utils.ValidateErrRedis(err, utils.WithFunc("redis delete"))
+	cmd := r.rds.Del(ctx, key)
+	if cmd.Err() != nil {
+		return utils.ValidateErrRedis(cmd.Err(), utils.WithFunc("redis delete"))
+	}
+	if cmd.Val() == 0 {
+		return errors.New("key doesnt exists")
 	}
 	return nil
 } 
