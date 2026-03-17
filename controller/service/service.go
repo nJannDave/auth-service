@@ -175,6 +175,9 @@ func (s *service) Logout(ctx context.Context, id int, accessTkn string, refreshT
 				return utils.ValidateErrService(err, utils.WithService(service))
 			}
 			if err := s.repo.RdsDel(ctx, keyDel); err != nil {
+				if strings.Contains(err.Error(), "key doesnt exists") {
+					return errors.New("id not found")
+				}
 				return utils.ValidateErrService(err, utils.WithService(service))
 			}
 			return nil
