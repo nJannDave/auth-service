@@ -30,7 +30,7 @@ func InitRepo(db *gorm.DB, rds *redis.Client) contract.Repo {
 func (r *repo) RdsTX(ctx context.Context, fn func() error) error {
 	_, err := r.rds.TxPipelined(ctx, func(redis.Pipeliner) error {
 		if err := fn(); err != nil {
-			return utils.ValidateErrRedis(err)
+			return err
 		}
 		return nil
 	})
@@ -40,7 +40,7 @@ func (r *repo) RdsTX(ctx context.Context, fn func() error) error {
 func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Duration) error {
 	ok, err := r.rds.SetNX(ctx, key, value, ttl).Result()
 	if err != nil {
-		return utils.ValidateErrRedis(err, utils.WithFunc("redis setnx"))
+		return utils.ValidateErrRedis(err, utils.WithFunc("redis-setnx"))
 	}
 	if ok {
 		return nil
@@ -50,7 +50,7 @@ func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Dur
 
 func (r *repo) RdsSet(ctx context.Context, key string, value string, ttl time.Duration) error {
 	if err := r.rds.Set(ctx, key, value, ttl).Err(); err != nil {
-		return utils.ValidateErrRedis(err, utils.WithFunc("redis set"), utils.WithName("token refresh"))
+		return utils.ValidateErrRedis(err, utils.WithFunc("redis-set"), utils.WithName("token refresh"))
 	}
 	return nil
 }
@@ -58,7 +58,7 @@ func (r *repo) RdsSet(ctx context.Context, key string, value string, ttl time.Du
 func (r *repo) RdsGet(ctx context.Context, key string, name string) (any, error) {
 	result, err := r.rds.Get(ctx, key).Result()
 	if err != nil {
-		return nil, utils.ValidateErrRedis(err, utils.WithFunc("redis get"), utils.WithName(name))
+		return nil, utils.ValidateErrRedis(err, utils.WithFunc("redis-get"), utils.WithName(name))
 	}
 	return result, nil
 }
@@ -66,7 +66,7 @@ func (r *repo) RdsGet(ctx context.Context, key string, name string) (any, error)
 func (r *repo) RdsDel(ctx context.Context, key string) error {
 	cmd := r.rds.Del(ctx, key)
 	if cmd.Err() != nil {
-		return utils.ValidateErrRedis(cmd.Err(), utils.WithFunc("redis delete"))
+		return utils.ValidateErrRedis(cmd.Err(), utils.WithFunc("redis-delete"))
 	}
 	if cmd.Val() == 0 {
 		return errors.New("key doesnt exists")
