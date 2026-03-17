@@ -28,7 +28,7 @@ func GetPublicKey() (*rsa.PublicKey, error) {
 	pbkEnv := os.Getenv("pbk")
 	pbk64, err := base64.StdEncoding.DecodeString(pbkEnv)
 	if err != nil {
-		return nil, errors.New("internal server error: failed decode token: " + err.Error())
+		return nil, errors.New("internal-server-error:failed decode token: " + err.Error())
 	}
 	pbkFix, _ := jwt.ParseRSAPublicKeyFromPEM(pbk64)
 	return pbkFix, nil
@@ -38,7 +38,7 @@ func Init() error {
 	prkEnv := os.Getenv("prk")
 	prk64, err := base64.StdEncoding.DecodeString(prkEnv)
 	if err != nil {
-		return errors.New("internal server error: failed decode token: " + err.Error())
+		return errors.New("internal-server-error:failed decode token: " + err.Error())
 	}
 	prkFix, _ := jwt.ParseRSAPrivateKeyFromPEM(prk64)
 	prk = prkFix
@@ -57,7 +57,7 @@ func generateToken(id int, role string, ttl time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	tknStr, err := token.SignedString(prk)
 	if err != nil {
-		return "", errors.New("internal server error: failed signed token: " + err.Error())
+		return "", errors.New("internal-server-error:failed signed token: " + err.Error())
 	}
 	return tknStr, nil
 }
@@ -85,14 +85,14 @@ func ValidateToken(token string, publicKey *rsa.PublicKey) (*Claims, error) {
 		return publicKey, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("internal server error: failed parse token: %w", err)
+		return nil, fmt.Errorf("internal-server-error:failed parse token: %w", err)
 	}
 	if !t.Valid {
 		return nil, errors.New("invalid token")
 	}
 	claims, ok := t.Claims.(*Claims)
 	if !ok {
-		return nil, fmt.Errorf("internal server error: failed type cast token: %w", err)
+		return nil, fmt.Errorf("internal-server-error:failed type cast token: %w", err)
 	}
 	return claims, nil
 }
