@@ -5,7 +5,6 @@ import (
 	_ "auth/dto"
 	contract "auth/domain/interface"
 	"strconv"
-	"strings"
 
 	"context"
 	"errors"
@@ -15,7 +14,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/nJannDave/pkg/const"
-	"github.com/nJannDave/pkg/log"
 	pb "github.com/nJannDave/pkg/pb/auth"
 	pbc "github.com/nJannDave/pkg/pb/auth/authconnect"
 	utils "github.com/nJannDave/pkg/utils/handler"
@@ -117,11 +115,7 @@ func (h *Handler) Refresh(
 	defer cancel()
 	token, err := utils.GetCookie(req, string(constt.RF))
 	if err != nil {
-		if strings.Contains(err.Error(), "internal server error: ") {
-			log.LogHSR(ctx, "error while parsing cookie", "refresh", req.Spec().Procedure, err.Error())
-			return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
-		}
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, err
 	}
 	tkn, err := h.service.Refresh(rCtx, token)
 	if err != nil {
@@ -155,19 +149,11 @@ func (h *Handler) Logout(
 	id := req.Header().Get(string(constt.ID))
 	rTkn, err := utils.GetCookie(req, string(constt.RF))
 	if err != nil {
-		if strings.Contains(err.Error(), "internal server error: ") {
-			log.LogHSR(ctx, "error while parsing cookie", "logout", req.Spec().Procedure, err.Error())
-			return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
-		}
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, err
 	}
 	aTkn, err := utils.GetCookie(req, string(constt.AT))
 	if err != nil {
-		if strings.Contains(err.Error(), "internal server error: ") {
-			log.LogHSR(ctx, "error while parsing cookie", "logout", req.Spec().Procedure, err.Error())
-			return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
-		}
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, err
 	}
 	if rTkn == "" || aTkn == "" { return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("please login")) }
 	idInt, err := strconv.Atoi(id)
@@ -175,9 +161,6 @@ func (h *Handler) Logout(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
 	}
 	if err := h.service.Logout(rCtx, idInt, aTkn, rTkn); err != nil {
-		if strings.Contains(err.Error(), "key doesnt exists") {
-			return nil, errors.New("id doesnt exists")
-		}
 		return nil, err
 	}
 	utils.SetCookie(ctx, string(constt.AT), "", 0)
