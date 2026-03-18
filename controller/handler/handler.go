@@ -4,7 +4,6 @@ import (
 	"auth/domain/entity"
 	_ "auth/dto"
 	contract "auth/domain/interface"
-	"strconv"
 
 	"context"
 	"errors"
@@ -136,7 +135,6 @@ func (h *Handler) Refresh(
 // @Produce json
 // @Security Access-Token && Refresh-Token
 // @Param data body dto.Empty false "empty"
-// @Param User-ID header string true "user id"
 // @Success 200 {object} dto.ResponseLogout "success login"
 // @Failure 500 {object} dto.ErrorInternal "if error internal"
 // @Router /authService.AuthService/Logout [post]
@@ -146,7 +144,6 @@ func (h *Handler) Logout(
 ) (*connect.Response[pb.Response], error) {
 	rCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	id := req.Header().Get(string(constt.ID))
 	rTkn, err := utils.GetCookie(req, string(constt.RF))
 	if err != nil {
 		return nil, err
@@ -156,11 +153,7 @@ func (h *Handler) Logout(
 		return nil, err
 	}
 	if rTkn == "" || aTkn == "" { return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("please login")) }
-	idInt, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("an error occured"))
-	}
-	if err := h.service.Logout(rCtx, idInt, aTkn, rTkn); err != nil {
+	if err := h.service.Logout(rCtx, aTkn, rTkn); err != nil {
 		return nil, err
 	}
 	utils.SetCookie(ctx, string(constt.AT), "", 0)
