@@ -8,7 +8,7 @@ import (
 
 type Repo interface {
 	Setnx(ctx context.Context, key string, value string, ttl time.Duration) error
-	RdsTX(ctx context.Context, fn func() error) error
+	RdsTX(ctx context.Context, fn func(context.Context) error) error
 	RdsSet(ctx context.Context, key string, value string, ttl time.Duration) error
 	RdsGet(ctx context.Context, key string, name string) (any, error)
 	RdsDel(ctx context.Context, key string) error
@@ -22,4 +22,6 @@ type Repo interface {
 	AddJunction(ctx context.Context, data entity.JunctionData) error
 
 	GetPassword(ctx context.Context, id int, nik string) (string, error)
+
+	GetId(ctx context.Context, id int) (int, error)
 }
