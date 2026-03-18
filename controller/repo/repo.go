@@ -27,14 +27,23 @@ func InitRepo(db *gorm.DB, rds *redis.Client) contract.Repo {
 	}
 }
 
-func (r *repo) RdsTX(ctx context.Context, fn func() error) error {
-	_, err := r.rds.TxPipelined(ctx, func(redis.Pipeliner) error {
-		if err := fn(); err != nil {
-			return err
+func (r *repo) RdsTX(ctx context.Context, fn func(context.Context) error) error {
+	var tx = r.rds.TxPipeline()
+	ctx = context.WithValue(ctx, string(constt.RTX), tx)
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Discard()
 		}
-		return nil
-	})
-	return err
+	}()
+	if err := fn(ctx); err != nil {
+		tx.Discard()
+		return err
+	}
+	if _, err := tx.Exec(ctx); err != nil {
+		tx.Discard()
+		return utils.ValidateErrRedis(err, utils.WithFunc("redis-tx"))
+	}
+	return nil
 }
 
 func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Duration) error {
@@ -49,7 +58,13 @@ func (r *repo) Setnx(ctx context.Context, key string, value string, ttl time.Dur
 }
 
 func (r *repo) RdsSet(ctx context.Context, key string, value string, ttl time.Duration) error {
-	if err := r.rds.Set(ctx, key, value, ttl).Err(); err != nil {
+	var err error
+	if tx := utils.GetRdsTx(ctx); tx != nil { 
+		err = tx.Set(ctx, key, value, ttl).Err()
+	} else {
+		err = r.rds.Set(ctx, key, value, ttl).Err()
+	}
+	if err != nil {
 		return utils.ValidateErrRedis(err, utils.WithFunc("redis-set"), utils.WithName("token refresh"))
 	}
 	return nil
@@ -64,19 +79,24 @@ func (r *repo) RdsGet(ctx context.Context, key string, name string) (any, error)
 }
 
 func (r *repo) RdsDel(ctx context.Context, key string) error {
-	cmd := r.rds.Del(ctx, key)
+	var cmd *redis.IntCmd
+	if tx := utils.GetRdsTx(ctx); tx != nil { 
+		cmd = tx.Del(ctx, key)	
+	} else {
+		cmd = r.rds.Del(ctx, key)
+		if cmd.Val() == 0 {
+			return errors.New("key doesnt exists")
+		}
+	}
 	if cmd.Err() != nil {
 		return utils.ValidateErrRedis(cmd.Err(), utils.WithFunc("redis-delete"))
-	}
-	if cmd.Val() == 0 {
-		return errors.New("key doesnt exists")
 	}
 	return nil
 } 
 
 func (r *repo) Transactions(ctx context.Context, fn func(context.Context) error ) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		ctx = context.WithValue(ctx, constt.TX, tx)
+		ctx = context.WithValue(ctx, string(constt.TX), tx)
 		return fn(ctx)
 	})
 }
@@ -106,6 +126,7 @@ func (r *repo) GetCity(ctx context.Context, city string) (int, error) {
 }
 
 func (r *repo) AddAccount(ctx context.Context, userData entity.UserData) (int, error) {
+	if tx := utils.GetDbTx(ctx); tx != nil { r.db = tx }
 	if err := r.db.WithContext(ctx).Clauses(clause.Returning{Columns: []clause.Column{{Name: "account_id"}}}).Create(&userData); err.Error != nil {
 		return 0, utils.ValidateErrRepo(err.Error, utils.WithFunc("AddAccount"))
 	}
@@ -113,6 +134,7 @@ func (r *repo) AddAccount(ctx context.Context, userData entity.UserData) (int, e
 }
 
 func (r *repo) AddJunction(ctx context.Context, data entity.JunctionData) error {
+	if tx := utils.GetDbTx(ctx); tx != nil { r.db = tx }
 	if err := r.db.WithContext(ctx).Create(&data); err.Error != nil {
 		return utils.ValidateErrRepo(err.Error, utils.WithFunc("AddJunction"))
 	}
@@ -125,4 +147,11 @@ func (r *repo) GetPassword(ctx context.Context, id int, nik string) (string, err
 		return "", utils.ValidateErrRepo(err, utils.WithName("password"), utils.WithFunc("GetPassword"))
 	}
 	return password, nil
+}
+
+func (r *repo) GetId(ctx context.Context, id int) (int, error) {
+	if err := r.db.WithContext(ctx).Table("account").Select("account_id").Where("account_id = ?", id).Limit(1).Scan(&id).Error; err != nil {
+		return 0, utils.ValidateErrRepo(err, utils.WithFunc("GetId"), utils.WithName("password"))
+	}
+	return id, nil
 }
