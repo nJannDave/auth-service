@@ -110,11 +110,6 @@ paths:
         name: data
         schema:
           $ref: '#/definitions/dto.Empty'
-      - description: user id
-        in: header
-        name: User-ID
-        required: true
-        type: string
       produces:
       - application/json
       responses:

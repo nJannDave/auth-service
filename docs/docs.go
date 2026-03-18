@@ -79,13 +79,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.Empty"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "user id",
-                        "name": "User-ID",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
