@@ -75,11 +75,13 @@ func (s *service) Register(ctx context.Context, userData entity.UserData, reside
 		IsErr = true
 		return utils.ValidateErrService(err, utils.WithService(service))
 	}
+	if provinceId == 0 { return errors.New("province not found") }
 	cityId, err := s.repo.GetCity(ctx, residence.City)
 	if err != nil {
 		IsErr = true
 		return utils.ValidateErrService(err, utils.WithService(service))
 	}	
+	if cityId == 0 { return errors.New("city not found") }
 	return s.repo.Transactions(ctx, func(ctx context.Context) error {
 		accountId, err := s.repo.AddAccount(ctx, userData)
 		if err != nil {
@@ -147,7 +149,7 @@ func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Toke
 	if tknNew, err := token.GenerateToken(tkn.ID, role); err != nil {
 		return nil, utils.ValidateErrService(err, utils.WithService(service))
 	} else {
-		if err := s.repo.RdsTX(ctx, func() error {
+		if err := s.repo.RdsTX(ctx, func(context.Context) error {
 			keySet := "token:refresh:id:" + strconv.Itoa(tkn.ID) + ":" + tknNew.Refresh
 			if err := s.repo.RdsSet(ctx, keySet, tknNew.Refresh, 24*3*time.Hour); err != nil {
 				return utils.ValidateErrService(err, utils.WithService(service))
@@ -163,21 +165,33 @@ func (s *service) Refresh(ctx context.Context, tokenRefresh string) (*token.Toke
 	}
 }
 
-func (s *service) Logout(ctx context.Context, id int, accessTkn string, refreshTkn string) error {
+func (s *service) Logout(ctx context.Context, accessTkn string, refreshTkn string) error {
 	var (
-		key = "blacklist:token:access:" + accessTkn + "id:" + strconv.Itoa(id)
+		key = "blacklist:token:access:" 
 		service = "logout"
-		keyDel = "token:refresh:id:" + strconv.Itoa(id) + ":" + refreshTkn
+		keyDel = "token:refresh:id:"
 	)
+	pbk, err := token.GetPublicKey()
+	if err != nil {
+		return utils.ValidateErrService(err, utils.WithService(service))
+	}
+	tkn, err := token.ValidateToken(refreshTkn, pbk)
+	if err != nil {
+		return utils.ValidateErrService(err, utils.WithService(service))
+	}
+	usrId, err := s.repo.GetId(ctx, tkn.ID)
+	if err != nil {
+		return utils.ValidateErrService(err, utils.WithService(service))
+	}
+	if usrId == 0 { return errors.New("id not found") }
+	key += accessTkn + "id:" + strconv.Itoa(tkn.ID) 
+	keyDel += strconv.Itoa(tkn.ID) + ":" + refreshTkn
 	return s.repo.RdsTX(ctx,
-		func() error {
+		func(context.Context) error {
 			if err := s.repo.RdsSet(ctx, key, accessTkn, 3*time.Minute); err != nil {
 				return utils.ValidateErrService(err, utils.WithService(service))
 			}
 			if err := s.repo.RdsDel(ctx, keyDel); err != nil {
-				if strings.Contains(err.Error(), "key doesnt exists") {
-					return errors.New("id not found")
-				}
 				return utils.ValidateErrService(err, utils.WithService(service))
 			}
 			return nil
