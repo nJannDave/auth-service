@@ -1,7 +1,9 @@
 package service
 
 import (
+	"auth/controller/hash"
 	"auth/controller/token"
+	"auth/domain/entity"
 	_ "auth/domain/entity"
 	"auth/mocks"
 	"context"
@@ -32,6 +34,77 @@ func TestMain(m *testing.M) {
 	if err := godotenv.Load("../../.env"); err != nil { log.ZapLog.Sugar().Fatalf("failed test: error: %v", err) }
 	if err := token.Init(); err != nil { log.ZapLog.Sugar().Fatalf("failed test: error: %v", err) }
 	os.Exit(m.Run())
+}
+
+func TestLogin(t *testing.T) {
+	// --- Arrange ---
+	const userId = 10
+	mocksdb := mocks.NewRepo(t)
+	svc := InitService(mocksdb)
+	ctx := context.Background()
+
+	data := entity.UserData {
+		NIK: "1234567891123456",
+		Name: "bainn",
+		Password: "bain-cobain-kasep",
+	}
+
+	inst := []generalInstructions{
+		{
+			name: "success login",
+			mocksFunc: func() {
+				hashPass, err := hash.HashPassword(data.Password)
+				if err != nil { log.ZapLog.Sugar().Fatalf("failed test: error: %v", err) }
+
+				mocksdb.On("GetNIK", ctx, data.NIK).Return(userId, nil).Once()
+				mocksdb.On("GetPassword", ctx, mock.Anything, data.NIK).Return(hashPass, nil).Once()
+				mocksdb.On("RdsSet", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+			},
+			err: errs{
+				isErr: false,
+				message: "",
+			},
+		},
+		{
+			name: "failed login - invalid password",
+			mocksFunc: func() {
+				hashPass, err := hash.HashPassword("inipasswordyangasli")
+				if err != nil { log.ZapLog.Sugar().Fatalf("failed test: error: %v", err) }
+
+				mocksdb.On("GetNIK", ctx, data.NIK).Return(userId, nil).Once()
+				mocksdb.On("GetPassword", ctx, mock.Anything, data.NIK).Return(hashPass, nil).Once()
+			},
+			err: errs {
+				isErr: true,
+				message: "invalid password",
+			},
+		},
+		{
+			name: "failed login - account not found",
+			mocksFunc: func() {
+				mocksdb.On("GetNIK", ctx, data.NIK).Return(0, nil).Once()
+			},
+			err: errs{
+				isErr: true,
+				message: "account not found",
+			},
+		},
+	}
+
+	// --- Act & Assert ---
+	for _, tc := range inst {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			tc.mocksFunc()
+			_, err := svc.Login(ctx, data)
+			if tc.err.isErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.err.message)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestRefresh(t *testing.T) {
